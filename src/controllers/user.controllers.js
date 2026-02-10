@@ -40,10 +40,10 @@ export const registerUser = asyncHandler(async (req, res) => {
         password
     });
 
-    const {accessToken, refreshToken} = await generateTokens(user._id);
+    // const {accessToken, refreshToken} = await generateTokens(user._id);
 
-    user.refreshToken = refreshToken;
-    await user.save();
+    // user.refreshToken = refreshToken;
+    // await user.save();
 
     const safeUser = await User.findById(user._id).select("-password -refreshToken");
     if(!safeUser) throw new ApiError(500, "Something went wrong while registering the user");
@@ -53,8 +53,8 @@ export const registerUser = asyncHandler(async (req, res) => {
         .json(new ApiResponse(
             201,
             {
-                user: safeUser,
-                refreshToken
+                user: safeUser
+                // refreshToken
             }, 
             "User registered successfully"
         )
