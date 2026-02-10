@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-import { WorkspaceRole } from "./enums.js";
+import { WorkspaceRole } from "./enum.model.js";
 
 const workspaceMemberSchema = new mongoose.Schema(
   {
