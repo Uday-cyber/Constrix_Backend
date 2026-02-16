@@ -3,6 +3,9 @@ import ApiError from "../utils/apiError.util.js";
 import ApiResponse from "../utils/apiResponse.util.js";
 import asyncHandler from "../utils/asyncHandler.util.js";
 
+const buildInitials = (firstName = "", lastName = "") =>
+  `${firstName.trim().charAt(0)}${lastName.trim().charAt(0)}`.toUpperCase();
+
 const generateTokens = async (userId) => {
   try {
     const user = await User.findById(userId);
@@ -35,7 +38,8 @@ export const registerUser = asyncHandler(async (req, res) => {
         firstName,
         lastName,
         email,
-        password
+        password,
+        image: buildInitials(firstName, lastName),
     });
 
     const safeUser = await User.findById(user._id).select("-password -refreshToken");
@@ -67,11 +71,16 @@ export const loginUser = asyncHandler(async (req, res) => {
 
   const { accessToken, refreshToken } = await generateTokens(user._id);
 
+  if (!user.image) {
+    user.image = buildInitials(user.firstName, user.lastName);
+    await user.save({ validateBeforeSave: false });
+  }
+
   const loggedInUser = await User.findById(user._id).select( "-password -refreshToken" ); //optional step
 
   const options = {
     httpOnly: true,
-    secure: true,
+    secure: process.env.NODE_ENV === "production",
   };
 
   return res.status(200)
@@ -101,7 +110,7 @@ export const logoutUser = asyncHandler(async (req, res) => {
     
     const options = {
         httpOnly: true,
-        secure: true
+        secure: process.env.NODE_ENV === "production"
     }
 
     return res.status(200)
@@ -125,7 +134,7 @@ export const refreshAccessToken = asyncHandler(async (req, res) => {
 
     const options = {
         httpOnly: true,
-        secure: true
+        secure: process.env.NODE_ENV === "production"
     }
 
     return res.status(200)
