@@ -4,8 +4,14 @@ import jwt from "jsonwebtoken";
 import ApiResponse from "../utils/apiResponse.util.js";
 import asyncHandler from "../utils/asyncHandler.util.js";
 
-const buildInitials = (firstName = "", lastName = "") =>
-  `${firstName.trim().charAt(0)}${lastName.trim().charAt(0)}`.toUpperCase();
+// const buildInitials = (firstName = "", lastName = "") =>
+//   `${firstName.trim().charAt(0)}${lastName.trim().charAt(0)}`.toUpperCase();
+
+const buildAvatar = (firstName = "", lastName = "") => {
+  const name = `${firstName} ${lastName}`.trim().replace(/\s+/g, "+");
+
+  return `https://ui-avatars.com/api/?name=${name}&background=random&color=fff&size=200`;
+};
 
 const generateTokens = async (userId) => {
   try {
@@ -40,7 +46,7 @@ export const registerUser = asyncHandler(async (req, res) => {
         lastName,
         email,
         password,
-        image: buildInitials(firstName, lastName),
+        image: buildAvatar(firstName, lastName),       //buildInitials(firstName, lastName),
     });
 
     const safeUser = await User.findById(user._id).select("-password -refreshToken");
@@ -73,7 +79,7 @@ export const loginUser = asyncHandler(async (req, res) => {
   const { accessToken, refreshToken } = await generateTokens(user._id);
 
   if (!user.image) {
-    user.image = buildInitials(user.firstName, user.lastName);
+    user.image = buildAvatar(user.firstName, user.lastName);
     await user.save({ validateBeforeSave: false });
   }
 
