@@ -3,6 +3,7 @@ import ApiError from "../utils/apiError.util.js";
 import jwt from "jsonwebtoken";
 import ApiResponse from "../utils/apiResponse.util.js";
 import asyncHandler from "../utils/asyncHandler.util.js";
+import { deleteImageFromCloudinary, uploadOnCloudinary } from "../utils/cloudinary.util.js";
 
 // const buildInitials = (firstName = "", lastName = "") =>
 //   `${firstName.trim().charAt(0)}${lastName.trim().charAt(0)}`.toUpperCase();
@@ -11,6 +12,28 @@ const buildAvatar = (firstName = "", lastName = "") => {
   const name = `${firstName} ${lastName}`.trim().replace(/\s+/g, "+");
 
   return `https://ui-avatars.com/api/?name=${name}&background=random&color=fff&size=200`;
+};
+
+const getCloudinaryPublicIdFromUrl = (url = "") => {
+  const cloudName = process.env.CLOUDINARY_NAME;
+  if (!url || !cloudName || !url.includes(`res.cloudinary.com/${cloudName}/`)) return null;
+
+  const marker = "/upload/";
+  const markerIndex = url.indexOf(marker);
+  if (markerIndex === -1) return null;
+
+  let path = url.slice(markerIndex + marker.length);
+
+  if (path.startsWith("v")) {
+    const slashIndex = path.indexOf("/");
+    const versionPart = slashIndex > -1 ? path.slice(0, slashIndex) : "";
+    if (/^v\d+$/.test(versionPart)) path = path.slice(slashIndex + 1);
+  }
+
+  const lastDot = path.lastIndexOf(".");
+  if (lastDot > -1) path = path.slice(0, lastDot);
+
+  return path || null;
 };
 
 const generateTokens = async (userId) => {
@@ -187,4 +210,51 @@ export const updateUser = asyncHandler(async (req, res) => {
     .json(
         new ApiResponse(200, user, "Accout details updated successfully")
     );
+});
+
+export const updateUserProfile = asyncHandler(async (req, res) => {
+
+  const avatarLocalPath = req.file?.path;
+  if (!avatarLocalPath) {
+    throw new ApiError(400, "Profile image is required");
+  }
+
+  const existingUser = await User.findById(req.user._id).select("image");
+  if (!existingUser) {
+    throw new ApiError(404, "User not found");
+  }
+
+  const oldImageUrl = existingUser.image;
+
+  // Upload new image
+  const profile = await uploadOnCloudinary(avatarLocalPath);
+  if (!profile?.secure_url) {
+    throw new ApiError(500, "Error uploading image");
+  }
+
+  // Update DB
+  const user = await User.findByIdAndUpdate(
+    req.user._id,
+    {
+      $set: {
+        image: profile.secure_url
+      }
+    },
+    { new: true }
+  ).select("-password -refreshToken");
+
+  // Delete old image
+  const oldPublicId = getCloudinaryPublicIdFromUrl(oldImageUrl);
+
+  if (oldPublicId) {
+    try {
+      await deleteImageFromCloudinary(oldPublicId);
+    } catch (error) {
+      console.log("Cloudinary delete error:", error);
+    }
+  }
+
+  return res.status(200).json(
+    new ApiResponse(200, user, "Profile updated successfully")
+  );
 });
