@@ -1,5 +1,6 @@
 import User from "../models/user.model.js";
 import ApiError from "../utils/apiError.util.js";
+import jwt from "jsonwebtoken";
 import ApiResponse from "../utils/apiResponse.util.js";
 import asyncHandler from "../utils/asyncHandler.util.js";
 
@@ -143,4 +144,41 @@ export const refreshAccessToken = asyncHandler(async (req, res) => {
     .json(
         new ApiResponse(200, {accessToken, refreshToken},"Successfully refreshed access token")
     )
+});
+
+export const deleteUser = asyncHandler(async (req, res) => {
+    const userId = req.user?._id;
+    if (!userId) throw new ApiError(401, "Unauthorized Request");
+
+    const deletedUser = await User.findByIdAndDelete(userId);
+    if (!deletedUser) throw new ApiError(404, "User not found");
+
+    const options = {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production"
+    };
+
+    return res.status(200)
+    .clearCookie("accessToken", options)
+    .clearCookie("refreshToken", options)
+    .json(new ApiResponse(200, {}, "User deleted successfully"));
+});
+
+export const updateUser = asyncHandler(async (req, res) => {
+    const {firstName, lastName} = req.body;
+
+    if(!firstName || !lastName) throw new ApiError(400, "All fields are required");
+
+    const user = await User.findByIdAndUpdate(
+        req.user?._id,
+        {
+            $set: { firstName, lastName }
+        },
+        { new: true }
+    ).select("-password");
+
+    return res.status(200)
+    .json(
+        new ApiResponse(200, user, "Accout details updated successfully")
+    );
 });
