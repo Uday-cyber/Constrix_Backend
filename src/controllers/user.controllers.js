@@ -179,8 +179,20 @@ export const deleteUser = asyncHandler(async (req, res) => {
     const userId = req.user?._id;
     if (!userId) throw new ApiError(401, "Unauthorized Request");
 
-    const deletedUser = await User.findByIdAndDelete(userId);
-    if (!deletedUser) throw new ApiError(404, "User not found");
+    const existingUser = await User.findById(userId).select("image");
+    if (!existingUser) throw new ApiError(404, "User not found");
+
+    const oldPublicId = getCloudinaryPublicIdFromUrl(existingUser.image);
+
+    await User.findByIdAndDelete(userId);
+
+    if (oldPublicId) {
+      try {
+        await deleteImageFromCloudinary(oldPublicId);
+      } catch (error) {
+        console.log("Cloudinary delete error:", error);
+      }
+    }
 
     const options = {
         httpOnly: true,
