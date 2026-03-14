@@ -36,6 +36,15 @@ const getCloudinaryPublicIdFromUrl = (url = "") => {
   return path || null;
 };
 
+const getCookieOptions = () => {
+  const isProduction = process.env.NODE_ENV === "production";
+  return {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: isProduction ? "none" : "lax",
+  };
+};
+
 const generateTokens = async (userId) => {
   try {
     const user = await User.findById(userId);
@@ -108,10 +117,7 @@ export const loginUser = asyncHandler(async (req, res) => {
 
   const loggedInUser = await User.findById(user._id).select( "-password -refreshToken" ); //optional step
 
-  const options = {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-  };
+  const options = getCookieOptions();
 
   return res.status(200)
     .cookie("accessToken", accessToken, options)
@@ -138,10 +144,7 @@ export const logoutUser = asyncHandler(async (req, res) => {
         }
     );
     
-    const options = {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production"
-    }
+    const options = getCookieOptions();
 
     return res.status(200)
     .clearCookie("accessToken", options)
@@ -162,10 +165,7 @@ export const refreshAccessToken = asyncHandler(async (req, res) => {
     
     const { accessToken, refreshToken } = await generateTokens(user._id);
 
-    const options = {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production"
-    }
+    const options = getCookieOptions();
 
     return res.status(200)
     .cookie("accessToken", accessToken, options)
@@ -194,10 +194,7 @@ export const deleteUser = asyncHandler(async (req, res) => {
       }
     }
 
-    const options = {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production"
-    };
+    const options = getCookieOptions();
 
     return res.status(200)
     .clearCookie("accessToken", options)
